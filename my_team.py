@@ -172,7 +172,7 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
                 successor = self.get_successor(game_state, action)
                 pos2 = successor.get_agent_position(self.index)
                 dist = self.get_maze_distance(self.start, pos2)
-                my_state = successor.get_agent_state(self.index)
+
                 if dist < best_dist:
                     best_action = action
                     best_dist = dist
@@ -233,7 +233,7 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
                     if ghost.scared_timer > 0:features['distance_to_ghost'] -= ghost_distance
                     else: features['distance_to_ghost'] += ghost_distance
 
-                    if((len(actual_state.get_legal_actions(self.index))==2 and ghost_distance<2*movecount)or not(is_food)and len(actual_state.get_legal_actions(self.index))==2 or ghost_distance!=0):
+                    if((len(actual_state.get_legal_actions(self.index))==2 and ghost_distance<2*movecount)and ghost_distance!=0 or not(is_food)and len(actual_state.get_legal_actions(self.index))==2 ):
                         
                         features["no_move"] = movecount
                     elif((len(actual_state.get_legal_actions(self.index))==2 and 6<2*movecount)or not(is_food)and len(actual_state.get_legal_actions(self.index))==2):
@@ -241,7 +241,7 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
                         features["no_move"] = movecount
                     else: features["no_move"]=-1
                 else:
-                    if((len(actual_state.get_legal_actions(self.index))==2 and 6<2*movecount)or not(is_food)and len(actual_state.get_legal_actions(self.index))==2):
+                    if((len(actual_state.get_legal_actions(self.index))==2 and 6<=2*movecount)or not(is_food)and len(actual_state.get_legal_actions(self.index))==2):
                       
                         features["no_move"] = movecount
                     else: features["no_move"]=-1
@@ -253,7 +253,14 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
 
             my_state = successor.get_agent_state(self.index)
             my_pos = my_state.get_position()
-
+            enemies = [successor.get_agent_state(i) for i in self.get_opponents(successor)]
+            ghosts = [a for a in enemies if not a.is_pacman]
+            ghost_distance=list()
+            for ghost in ghosts:
+                if(ghost.get_position() is not None):
+                    ghost_distance=self.get_maze_distance(my_pos, ghost.get_position())
+                    if ghost.scared_timer > 0:features['distance_to_ghost'] -= ghost_distance
+                    else: features['distance_to_ghost'] += ghost_distance
             # Computes whether we're on defense (1) or offense (0)
             features['on_defense'] = 1
             if my_state.is_pacman: features['on_defense'] = 0
@@ -265,11 +272,16 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
             if len(invaders) > 0:
                 dists = [self.get_maze_distance(my_pos, a.get_position()) for a in invaders]
                 features['invader_distance'] = min(dists)
+            else: 
+                if (abs(my_pos[0]-self.start[0] >= 5)):
+                    features['invader_distance']=-1
             
             if action == Directions.STOP: features['stop'] = 1
             rev = Directions.REVERSE[game_state.get_agent_state(self.index).configuration.direction]
             if action == rev: features['reverse'] = 1
         return features
+    
+    
     def get_weights(self, game_state, action):
         return {'successor_score': 100, 'distance_to_food': -1,'distance_to_ghost':+3,"no_move":-4,"static":-1, 
                 'on_defense':100,'num_invaders': -1000, 'invader_distance': -10, 'stop': -100, 'reverse': -2}
@@ -301,6 +313,9 @@ class DefensiveReflexAgent(ReflexCaptureAgent):
         if len(invaders) > 0:
             dists = [self.get_maze_distance(my_pos, a.get_position()) for a in invaders]
             features['invader_distance'] = min(dists)
+        else: 
+            if (abs(my_pos[0]-self.start[0] >= 5)):
+                features['invader_distance']=-1
         
         if action == Directions.STOP: features['stop'] = 1
         rev = Directions.REVERSE[game_state.get_agent_state(self.index).configuration.direction]
